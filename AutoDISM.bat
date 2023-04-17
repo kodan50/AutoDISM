@@ -114,6 +114,7 @@ FOR /F "tokens=2* skip=2" %%a in ('reg query %RegLoc% /v "UBR"') do SET Temp=%%b
 set /a Rev=%Temp%
 FOR /F "tokens=2* skip=2" %%a in ('reg query %RegLoc% /v "ProductName"') do SET Temp=%%b
 set /a WindowsVersion=%Temp:~8,2%
+:: Just wanted to add a quick note that I have no intention to add Itanium or ARM based support, since I can't test them.
 reg query %RegLoc% /v BuildLabEx | findstr amd64
 if "%ERRORLEVEL%" == "0" set WordSize=64
 if "%ERRORLEVEL%" == "1" set WordSize=32
