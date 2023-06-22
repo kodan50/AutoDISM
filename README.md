@@ -13,3 +13,6 @@ Finally, the github repo system won't allow me to add the install files here bec
 
 # How to use: A quick user guide
 In an effort to make this as simple as possible, you just double click AutoDISM and let it work. If you are missing an appropriate install file, it will let you know and ask you to add it into the DISM kit.
+
+# Update: 06-21-2023
+Apparently, in some cases, even if DISM was given a path to the correct file, it doesn't seem to know how to work out editions of Windows automatically from the installer file. I anticipated this might be an issue, and am working on a rewrite to the system. I don't know yet if I can automate selecting the appropriate index, and if not, it may have to be written in manually, but either case, I will update here once I know more. Also, when did making change notes become a thing? It seems strange I'd have to hijack the main readme file to add a note like this, but editing the file didn't seem to have a change log notation box anymore.
