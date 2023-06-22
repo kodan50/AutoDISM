@@ -1,7 +1,6 @@
 # AutoDISM: The automatic DISM utility
 AutoDISM, as the name might imply, is my attempt at automating DISM runs by checking over which build of Windows you are running, and calling the appropriate files and command lines to run DISM for you.
 I started this because it became tiresome to type in the long, convoluted command for each computer I need to run DISM on, and when you have 10+ computers a day, it takes its toll on the soul.
-Also, this tool takes advantage of the fact that DISM doesn't seem to need the /index command, as all my testings seems to indicate it is smart enough to work out what it needs. If this is a problem, let me know with an issue ticket and I can change up the script, but I need to be able to reproduce the issue so I can test if it works.
 
 # How to set up: A quick setup guide
 Start by creating a folder with the build number of Windows you are working on. It will be a 5 digit number. Then navigate into this folder. Create a second folder, name it either 32 or 64 depending on the wordsize of your installed Windows. Navigate into this folder. You will need to copy the *install.wim* or *install.esd* file from an all in one ISO into its corresponding folder.
