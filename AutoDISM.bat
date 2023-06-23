@@ -192,11 +192,17 @@ set Ext=swm
 
 ::We are at the point where we want to perform last minute sanity checks before moving on. Not all AIO packages are created equal, and some may not contain the index the system in question needs.
 ::This is the part where we need to add any known names for Windows' edition into a comparison string to work with, since Windows doesn't appear to append the name of the index it uses when installing Windows. Oh, boy! I didn't know my sanity levels could reach negative numbers! Here we gooooooo!
+
 if "%Edition%"=="Professional" set EditionC=Windows 10 Pro
+if "%Edition%"=="ProfessionalN" set EditionC=Windows 10 Pro N
 if "%Edition%"=="Home" set EditionC=Windows 10 Home
+if "%Edition%"=="HomeN" set EditionC=Windows 10 Home N
 if "%Edition%"=="Core" set EditionC=Windows 10 Home
-:: I've seen Core edition floating around some of the earlier editions of Windows 10. Is it relevant anymore?
+if "%Edition%"=="CoreN" set EditionC=Windows 10 Home N
+if "%Edition%"=="CoreSingleLanguage" set EditionC=Windows 10 Home Single Language
+:: I don't know for sure when Core stopped referring to Home, but earlier versions used Core to mean Home.
 :: You should open up a ticket on Github if you want to see more added. Or do a pull request. Or add them yourself. Or wait for me to add more. Or go outside and touch grass. Ha, just kidding!
+
 setlocal enabledelayedexpansion
 for /f "tokens=*" %%A in ('Dism /Get-ImageInfo /ImageFile:%Build%\%WordSize%\install.%Ext% ^| findstr "Index"') do (
     REM Remove the first seven characters from each line
