@@ -12,6 +12,3 @@ Finally, the github repo system won't allow me to add the install files here bec
 
 # How to use: A quick user guide
 In an effort to make this as simple as possible, you just double click AutoDISM and let it work. If you are missing an appropriate install file, it will let you know and ask you to add it into the DISM kit.
-
-# Update: 06-21-2023
-Apparently, in some cases, even if DISM was given a path to the correct file, it doesn't seem to know how to work out editions of Windows automatically from the installer file. I had anticipated that this might be an issue, and hoped I'd never have to deal with it. Looks like we are dealing with it. The first rewrite should address the index issue automatically, but has only been tested on a very small sample size of systems and needs more testing before it can be trusted as working. Please review the batch file before executing it, and if all looks well, let me know how it goes.
