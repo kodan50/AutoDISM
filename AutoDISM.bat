@@ -97,7 +97,7 @@ for /l %%i in (0,1,25) do (
 )
 endlocal & set "Drive=%Drive%"
 
-:: If we are on Live Windows, then mount the registry. This will throw an error message if this is ran a second time on the same instance of Live Windows. If it worked the first time, ignore the error message the second time.
+:: If we are on Live Windows, then mount the registry. This will throw an error message if this is ran a second time on the same instance of Live Windows. It is supposed to unmount the registry, so I don't know why. If it worked the first time, ignore the error message the second time.
 if "%Live%"=="Yes" (
  reg load HKLM\temphive %DRIVE%:\Windows\System32\config\SOFTWARE > nul
  if "%ERRORLEVEL%"=="0" (
@@ -239,8 +239,9 @@ if "%Live%"=="No" set Image=^/Online
 
 :: If pending.xml or migration.xml exists, dism will fail. We'll need to handle them.
 :: Because Windows is stupid, the files that prevent repair might be locked, requiring a repair to fix.
-:: Ignore the error messages for now.
+:: Ignore the error messages for now. We are going to be working around them as best we can.
 :: Some Windows versions are glitched out where the pending file is deleted, but Windows still thinks something is pending. We will run this first, then delete the pending files if they exist.
+:: When Windows boots, it should complete the process of undoing pending changes.
 dism %Image%  /ScratchDir=%Drive%:\DISMScratchDir /Cleanup-Image /RevertPendingActions
 attrib -s -h -r %Drive%:\windows\winsxs\pending.xml > nul
 attrib -s -h -r %Drive%:\windows\winsxs\migration.xml > nul
