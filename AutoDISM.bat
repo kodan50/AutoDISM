@@ -191,8 +191,16 @@ set Ext=swm
 )
 
 ::We are at the point where we want to perform last minute sanity checks before moving on. Not all AIO packages are created equal, and some may not contain the index the system in question needs.
-::This is the part where we need to add any known names for Windows' edition into a comparison string to work with, since Windows doesn't appear to append the name of the index it uses when installing Windows. Oh, boy! I didn't know my sanity levels could reach negative numbers! Here we gooooooo!
+::This is the part where we need to add any known names for Windows' edition into a comparison string to work with, since Windows doesn't appear to append the name of the index it uses when installing Windows. It makes sense when you understand what is going on.
+::There appears to be a lot of cases where images can carry several different installation packages, serving a bunch of different installation needs, but for the purposes of DISM, they can piggyback on a single index that matches the base of the image.
+::Volume license installations, education editions, and long term support editions seem to generally fall under the Enterprise umbrella, so as long as you have at least a single Enterprise installation index in your AiO, it should serve all of your esoteric needs.
+::If that makes sense? Oh, boy! I didn't know my sanity levels could reach negative numbers! Here we gooooooo!
 
+if "%Edition%"=="EnterpriseS" set EditionC=Windows 10 Enterprise
+if "%Edition%"=="Enterprise" set EditionC=Windows 10 Enterprise
+if "%Edition%"=="EnterpriseN" set EditionC=Windows 10 Enterprise N
+if "%Edition%"=="Education" set EditionC=Windows 10 Education
+if "%Edition%"=="EducationN" set EditionC=Windows 10 Education N
 if "%Edition%"=="Professional" set EditionC=Windows 10 Pro
 if "%Edition%"=="ProfessionalN" set EditionC=Windows 10 Pro N
 if "%Edition%"=="Home" set EditionC=Windows 10 Home
@@ -201,7 +209,7 @@ if "%Edition%"=="Core" set EditionC=Windows 10 Home
 if "%Edition%"=="CoreN" set EditionC=Windows 10 Home N
 if "%Edition%"=="CoreSingleLanguage" set EditionC=Windows 10 Home Single Language
 :: I don't know for sure when Core stopped referring to Home, but earlier versions used Core to mean Home.
-:: You should open up a ticket on Github if you want to see more added. Or do a pull request. Or add them yourself. Or wait for me to add more. Or go outside and touch grass. Ha, just kidding!
+:: There are probably going to be more that need to be added. You should open up a ticket on Github if you want to see more. Or do a pull request. Or add them yourself. Or wait for me to add more. Or go outside and touch grass. Ha, just kidding!
 
 setlocal enabledelayedexpansion
 for /f "tokens=*" %%A in ('Dism /Get-ImageInfo /ImageFile:%Build%\%WordSize%\install.%Ext% ^| findstr "Index"') do (
