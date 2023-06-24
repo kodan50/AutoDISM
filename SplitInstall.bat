@@ -57,10 +57,12 @@ for /f "tokens=*" %%A in ('Dism /Get-ImageInfo /ImageFile:install.esd ^| findstr
 for /f "delims=" %%A in ('type "%CD%\index.tmp"') do (
     dism /Export-Image /SourceImageFile:install.esd /SourceIndex:%%A /DestinationImageFile:install.wim /Compress:Max /CheckIntegrity
 )
-:: And now we convert to FAT32 friendly SWM files. See, everything went swimmingly!
+:: Step two: Now we convert to FAT32 friendly SWM files. See, everything went swimmingly!
 Dism /Split-Image /ImageFile:install.wim /SWMFile:install.swm /FileSize:4096
  goto end
 )
+
+:: Of course, if we don't have to convert the ESD to WIM, such simplistic IF commands is all we need!
 if exist install.wim (
  if exist install.esd goto Error
  if exist install.swm goto Error
