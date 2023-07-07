@@ -1,6 +1,6 @@
 @echo off
 
-rem Let's snag admin privs. Registry maniuplation might require big boy trousers, but since we can't escalate as a chad system user, we will have to make due with admin pullups.
+:: We need admin permissions for DISM to do its job, and for reg to mount and unmount a registry hive.
 :init
  setlocal DisableDelayedExpansion
  set cmdInvoke=1
@@ -35,58 +35,41 @@ rem Let's snag admin privs. Registry maniuplation might require big boy trousers
  setlocal & cd /d %~dp0
  if '%1'=='ELEV' (del "%vbsGetPrivileges%" 1>nul 2>nul  &  shift /1)
 :SkipAdmin
-cd /d "%~dp0"
 
-cls
+CLS
 
-::Pre-mature termination handling.
-del index.tmp > nul
-del disk.srp > nul
-del "%TEMP%\diskpart.srp" > nul
-cls
+:: Check if the Windows we are on is capable of performing the repair. Windows 7 and older is not able to perform this type of Windows repair with the DISM tool.
+:: I attempted to add Windows 8 into the DISM kit, but it started to turn into a mess, so I opted to remove its support until I have more patience to deal with it.
 
-:: Windows 8.1 and below likely won't work with this tool, but I will update it if it turns out Windows 8 does work or something.
 setlocal
-for /f "tokens=4-5 delims=. " %%i in ('ver') do set VERSION=%%i.%%j
-if not "%version%"=="10.0" (
- goto BadWindows
-)
+for /f "tokens=4-5 delims=. " %%i in ('ver') do set WinVer=%%i.%%j
+if not "%WinVer%"=="10.0" goto BadWindows
 
-:: Sometimes we will be booted into a computer with multiple Windows installations. This should let us be choosy beggers.
+:: Check for any Windows directories on any storage devices that aren't CD drives.
+:: For notations sake, some Live Windows doesn't like WMIC and some installations run diskpart in a different window, so this is a third way to perform this check.
 echo The following drives appear to have a Windows install:
-:: My specific live Windows doesn't work with a specific WMIC command that facilitates this need for some reason. No one else on the planet is having the issue, so it's probably a skill issue. This also means we need to use Diskpart, which isn't optimal, but it is what it is.
-:: Let's write a script file for Diskpart.
-echo list volume > "%TEMP%\Diskpart.srp"
-echo exit >> "%TEMP%\Diskpart.srp"
-:: We need to execute Diskpart to output a file containing drives and their letters.
-:: My initial plan was to output the disk list to temp as well, but a for loop won't load from a temp folder if it has a space in the path. Because why not?
-diskpart /s "%TEMP%\Diskpart.srp" > Disk.srp
-:: We are going to loop the output and check each mounted drive.
-setlocal enableextensions enabledelayedexpansion
-
-::We want to set some kind of var that we can use to count.
-set Count=1
-::Let's read this back and print each line.
-for /F "usebackq tokens=*" %%A in ("Disk.srp") do (
-if /i !Count! gtr 5 set Text=%%A
-if /i !Count! gtr 5 if "!Text!"=="Leaving DiskPart..." goto Continue
-if /i !Count! gtr 5 if not "!Text:~13,1!" == " " set Drive=!Text:~13,1!:\windows
-if /i !Count! gtr 5 if not "!Text:~13,1!" == " " if exist !Drive! echo !Drive!
-set /A Count += 1
+setlocal enabledelayedexpansion
+for %%a in (A B C D E F G H I J K L M N O P Q R S T U V W X Y Z) do (
+  fsutil fsinfo drivetype %%a: | find /i "Fixed" >nul
+  if not errorlevel 1 (
+    if exist %%a:\windows echo %%a:
+  ) else (
+    fsutil fsinfo drivetype %%a: | find /i "Removable" >nul
+    if not errorlevel 1 (
+      if exist %%a:\windows echo %%a:\windows
+    )
+  )
 )
 endlocal
 
-:Continue
 set Drive=
 set /p Drive="Enter the drive letter of Windows. If no drive letter supplied, assuming C. --> "
 if "%Drive%"=="" set Drive=C
 set Drive=%Drive:~,1%
-if /I "%Drive%"=="x" goto LiveWindows
 if not exist %Drive%:\Windows goto NoWindows
-if /I "%Drive%:"=="%SYSTEMDRIVE%" (set Live=No) else (set Live=Yes)
 
-::We don't need the drive letter to look elegant, but we also don't need a mini fridge at the computer desk when it's just 25 steps from the kitchen, Karen!
-::This will convert the user's more-than-likely lower case letter to an uppercase letter. Don't test me, or we will go with uppestcase letters and break reality.
+::This will convert the user's more-than-likely lower case letter to an uppercase letter.
+::It just makes the echo cleaner since it matches command prompts display, and plays nicer with "quoted" string for exact comparisons later on if we need them.
 setlocal EnableDelayedExpansion
 set "alphabet=abcdefghijklmnopqrstuvwxyz"
 set "alphabet_upper=ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -97,93 +80,66 @@ for /l %%i in (0,1,25) do (
 )
 endlocal & set "Drive=%Drive%"
 
-:: If we are on Live Windows, then mount the registry. This will throw an error message if this is ran a second time on the same instance of Live Windows. It is supposed to unmount the registry, so I don't know why. If it worked the first time, ignore the error message the second time.
-if "%Live%"=="Yes" (
- reg load HKLM\temphive %DRIVE%:\Windows\System32\config\SOFTWARE > nul
+:: Knowing if Windows is online or offline helps us when we mount the registry, and specify the location of the registry keys.
+:: We also use this later in different part of DISM handlimg.
+if "%Drive%:"=="%SYSTEMDRIVE%" (set Status=Online) else (set Status=Offline)
+
+:: We can mount the registry now, if we are working on an offline Windows.
+if "%Status%"=="Offline" (
+ reg load HKLM\temphive %DRIVE%:\Windows\System32\config\SOFTWARE> nul 2>&1
+ set RegLoc="HKLM\temphive\Microsoft\Windows NT\CurrentVersion"
  if "%ERRORLEVEL%"=="0" (
   echo Registry seems to be loaded correctly.
  )
  if "%ERRORLEVEL%"=="1" (
-  echo Registry did not load correctly.
+  goto PossibleCorrpuptWindows
  )
+) else (
+set RegLoc="HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion"
 )
 
-:: Now we can do some registry sniffing for stuff.
-if "%Live%"=="Yes" set RegLoc="HKLM\temphive\Microsoft\Windows NT\CurrentVersion"
-if "%Live%"=="No" set RegLoc="HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion"
-
-::If you are executing this batch file on either Windows 10 or 11, and attempting to scan an offline Windows system that is not running either of these versions, it is necessary to terminate the batch file.
+:: If all has gone well, let's pull the version of Windows and make sure we are working on one we can actually work with.
+:: Anything below Windows 10 is not supported.
 FOR /F "tokens=4 skip=2" %%a in ('reg query %RegLoc% /v "ProductName"') DO SET WindowsVersion=%%a
-IF NOT "%WindowsVersion%"=="10" IF NOT "%WindowsVersion%"=="11" goto ErrorBadWindowsVersion
+IF NOT "%WindowsVersion%"=="10" IF NOT "%WindowsVersion%"=="11" goto BadWindows
 
 FOR /F "tokens=2* skip=2" %%a in ('reg query %RegLoc% /v "EditionID"') do SET Temp=%%b
 set Edition=%Temp%
 FOR /F "tokens=2* skip=2" %%a in ('reg query %RegLoc% /v "CurrentBuildNumber"') do SET Temp=%%b
 set Build=%Temp%
-FOR /F "tokens=2* skip=2" %%a in ('reg query %RegLoc% /v "UBR"') do SET Temp=%%b
-set /a Rev=%Temp%
 FOR /F "tokens=2* skip=2" %%a in ('reg query %RegLoc% /v "ProductName"') do SET Temp=%%b
-set /a WindowsVersion=%Temp:~8,2%
+set WindowsVersion=%Temp:~8,2%
+
 :: Just wanted to add a quick note that I have no intention to add Itanium or ARM based support, since I can't test them.
 :: If you are running this on one of those platforms, you have no one to blame but yourself.
-reg query %RegLoc% /v BuildLabEx | findstr amd64 > nul
+:: Do a pull request, add the appropriate version to the kit, adjust the scrpt below, and if it works, let me know and I will merge the change.
+reg query %RegLoc% /v BuildLabEx | findstr amd64 > nul 2>&1
 if "%ERRORLEVEL%" == "0" set WordSize=64
 if "%ERRORLEVEL%" == "1" set WordSize=32
 
-:: Now that we have all the data we need, we should unload the registry.
-if "%Live%"=="Yes" reg unload HKLM\temphive > nul
-
-
-:: We are going to use a table to convert the build ID into a version, and it lets us easily goto a location.
-:: I know the string exists in registry as of 2009, but I don't know if it works on previous versions, so this is a failsafe.
-
-if "%Build%"=="10240" set Version=1507
-if "%Build%"=="14393" set Version=1607
-if "%Build%"=="15063" set Version=1703
-if "%Build%"=="16299" set Version=1709
-if "%Build%"=="17134" set Version=1803
-if "%Build%"=="17763" set Version=1809
-if "%Build%"=="18362" set Version=1903
-if "%Build%"=="18363" set Version=1909
-if "%Build%"=="19041" set Version=2004
-if "%Build%"=="19042" set Version=20H2
-if "%Build%"=="19043" set Version=21H1
-if "%Build%"=="19044" set Version=21H2
-if "%Build%"=="22000" set Version=21H2
-if "%Build%"=="22621" set Version=22H2
-
-
-echo Script Details:
-echo Batch Locale:		%~dp0
-echo Selected Drive Letter:	%Drive%:
-echo Booted Drive Letter:	%SYSTEMDRIVE%
-echo Is live Windows:	%Live%
-if %WindowsVersion%=="11" (
-echo ---Windows 11 Details---
-) else (
-echo ---Windows 10 Details---
-)
-echo Edition:		%Edition%
-echo Type:			%WordSize%-bit
-echo Version:		%Version%
-echo Build:			%Build%
-echo Revision:		%Rev%
-
-pause
-
-::Initially, not using an index number showed promise, but it seems like we need to use them after all.
-::We are going to write up the script with the strings we know will help with picking out the correct index for the correct image.
-::This also means we can check the install file for an image that works with the selected edition of Windows, and if it doesn't exist, output it into an error file for evaluation later.
-
-if not exist "%Build%\%WordSize%\install.*" (
-echo This build of Windows has not been added to the AutoDISM kit.
-echo Please find an AIO install file for build %Build% running %WordSize%-bit.
-echo Windows %WindowsVersion% - %Build% Type - %WordSize% Edition - %Edition% >> NoOS.log
-
-goto end
+:: Windows 64-bit cannot repair Windows 32-bit, and vice versa. We will terminate if this is the case.
+IF "%PROCESSOR_ARCHITECTURE%"=="AMD64" (
+if not "%WordSize%"=="64" goto BadWordSize
+) ELSE IF "%PROCESSOR_ARCHITECTURE%"=="x86" (
+if not "%WordSize%"=="32" goto BadWordSize
 )
 
-::We have three versions of the installer file, at least that I know of, that can be used with DISM. Here we will specify which, since we will be calling this file at least twice, and maybe more depending on how we progress.
+echo --- Script Details ---
+echo Batch Locale:			%~dp0
+echo Booted Drive Letter:		%SYSTEMDRIVE%
+echo --- Selected Windows System Information ---
+echo Selected Drive Letter:		%Drive%:
+echo Selected Windows status:	%Status%
+echo Registry Location:		%RegLoc%
+echo --- Selected Windows Details ---
+echo Windows version:		%WindowsVersion%
+echo Windows Edition:		%Edition%
+echo Windows Build:			%Build%
+echo Windows Type:			%WordSize%-bit
+
+if not exist "%Build%\%WordSize%\install.*" goto NoInstallFile
+
+::We have three versions of the installer file, at least that I know of, that can be used with DISM. Here we will specify which, since it makes the batch scripting cleaner in the long run.
 if exist "%Build%\%WordSize%\install.wim" (
 set Ext=wim
 )
@@ -194,12 +150,27 @@ if exist "%Build%\%WordSize%\install.swm" (
 set Ext=swm
 )
 
-::We are at the point where we want to perform last minute sanity checks before moving on. Not all AIO packages are created equal, and some may not contain the index the system in question needs.
-::This is the part where we need to add any known names for Windows' edition into a comparison string to work with, since Windows doesn't appear to append the name of the index it uses when installing Windows. It makes sense when you understand what is going on.
-::There appears to be a lot of cases where images can carry several different installation packages, serving a bunch of different installation needs, but for the purposes of DISM, they can piggyback on a single index that matches the base of the image.
-::Volume license installations, education editions, and long term support editions seem to generally fall under the Enterprise umbrella, so as long as you have at least a single Enterprise installation index in your AiO, it should serve all of your esoteric needs.
-::If that makes sense? Oh, boy! I didn't know my sanity levels could reach negative numbers! Here we gooooooo!
 
+:: At this point, we have to deal with unique version of Windows and their unique DISM displayed name.
+:: If you find an edition of Windows that isn't covered here, do a pull request, adjust the script to work, and suggest a merge.
+
+:: Some editions unbrella under other editions, and Windows 11 have different rules for these umbrellas, so while these seem to be correct, submit a ticket if something doesn't go as planned.
+
+if "%WindowsVersion%"=="11" (
+if "%Edition%"=="Core" set EditionC=Windows 11 Home
+if "%Edition%"=="CoreN" set EditionC=Windows 11 Home N
+if "%Edition%"=="Home" set EditionC=Windows 11 Home
+if "%Edition%"=="HomeN" set EditionC=Windows 11 Home N
+if "%Edition%"=="Professional" set EditionC=Windows 11 Pro
+if "%Edition%"=="ProfessionalN" set EditionC=Windows 11 Pro N
+if "%Edition%"=="EnterpriseS" set EditionC=Windows 11 Pro for Workstations
+if "%Edition%"=="Enterprise" set EditionC=Windows 11 Pro for Workstations
+if "%Edition%"=="EnterpriseN" set EditionC=Windows 11 Pro N for Workstations
+if "%Edition%"=="Education" set EditionC=Windows 11 Pro Education
+if "%Edition%"=="EducationN" set EditionC=Windows 11 Pro Education N
+)
+
+if "%WindowsVersion%"=="10" (
 if "%Edition%"=="EnterpriseS" set EditionC=Windows 10 Enterprise
 if "%Edition%"=="Enterprise" set EditionC=Windows 10 Enterprise
 if "%Edition%"=="EnterpriseN" set EditionC=Windows 10 Enterprise N
@@ -212,9 +183,9 @@ if "%Edition%"=="HomeN" set EditionC=Windows 10 Home N
 if "%Edition%"=="Core" set EditionC=Windows 10 Home
 if "%Edition%"=="CoreN" set EditionC=Windows 10 Home N
 if "%Edition%"=="CoreSingleLanguage" set EditionC=Windows 10 Home Single Language
-:: I don't know for sure when Core stopped referring to Home, but earlier versions used Core to mean Home.
-:: There are probably going to be more that need to be added. You should open up a ticket on Github if you want to see more. Or do a pull request. Or add them yourself. Or wait for me to add more. Or go outside and touch grass. Ha, just kidding!
+)
 
+:: If all this mess makes sense and works, the next thing to do is check the installer for a compatible repair index.
 setlocal enabledelayedexpansion
 for /f "tokens=*" %%A in ('Dism /Get-ImageInfo /ImageFile:%Build%\%WordSize%\install.%Ext% ^| findstr "Index"') do (
     REM Remove the first seven characters from each line
@@ -230,76 +201,70 @@ for /f "delims=" %%A in ('type "%CD%\index.tmp"') do (
 	if !EditionC!==!name! goto GoodInstaller
     )
 )
-goto BadInstaller
 
 :GoodInstaller
+
 echo The index number we need is %index%.
 echo The name of the index is %name%.
-endlocal
+echo.
+echo Let's do this!
 
+if "%Status%"=="Offline" set Image=^/Image:%Drive%:
+if "%Status%"=="Online" set Image=^/Online
 mkdir %Drive%:\DISMScratchDir > nul
-if "%Live%"=="Yes" set Image=^/Image:%Drive%:
-if "%Live%"=="No" set Image=^/Online
 
-:: If pending.xml or migration.xml exists, dism will fail. We'll need to handle them.
-:: Because Windows is stupid, the files that prevent repair might be locked, requiring a repair to fix.
-:: Ignore the error messages for now. We are going to be working around them as best we can.
-:: Some Windows versions are glitched out where the pending file is deleted, but Windows still thinks something is pending. We will run this first, then delete the pending files if they exist.
-:: When Windows boots, it should complete the process of undoing pending changes.
+:DISMStart
+:: Some might say this is a bad idea to do this, but this has cleared up a lot of issues, so edit it if you don't like it.
+:: I think this only works in Live Windows. Will test when it becomes relevant.
 dism %Image%  /ScratchDir=%Drive%:\DISMScratchDir /Cleanup-Image /RevertPendingActions
-attrib -s -h -r %Drive%:\windows\winsxs\pending.xml > nul
-attrib -s -h -r %Drive%:\windows\winsxs\migration.xml > nul
-del %Drive%:\windows\winsxs\pending.xml > nul
-del %Drive%:\windows\winsxs\migration.xml > nul
+attrib -s -h -r %Drive%:\windows\winsxs\pending.xml> nul 2>&1
+attrib -s -h -r %Drive%:\windows\winsxs\migration.xml> nul 2>&1
+del %Drive%:\windows\winsxs\pending.xml> nul 2>&1
+del %Drive%:\windows\winsxs\migration.xml> nul 2>&1
 
+:: Running this process next seems to help make the repair more reliable. No real data to back it up, though.
 dism %Image% /Cleanup-Image /StartComponentCleanup /ScratchDir=%Drive%:\DISMScratchDir
 
+:: We are going to perform a repair that doesn't use Windows Update. Usually, this fixes it faster, and online may not be needed.
 dism %Image% /Cleanup-Image /RestoreHealth /Source:%Build%\%WordSize%\install.%Ext% /LimitAccess /ScratchDir=%Drive%:\DISMScratchDir
 if not "%ERRORLEVEL%"=="0" goto DISMError
 
 :sfc
-rmdir /s /q %Drive%:\DISMScratchDir
 
 :: Once DISM is done, we can SFC.
-if "%Live%"=="Yes" sfc /scannow /offbootdir=%Drive%: /offwindir=%Drive%:\windows
-if "%Live%"=="No" sfc /scannow
-pause
+if "%Status%"=="Offline" sfc /scannow /offbootdir=%Drive%: /offwindir=%Drive%:\windows
+if "%Status%"=="Online" sfc /scannow
 
 goto end
 
 :BadWindows
-echo This batch file will only run on Windows 10 and 11.
-echo Doing otherwise will probably break something.
+echo This version of Windows is unsupported.
 goto end
 
 :NoWindows
-echo I can't find a Windows directory here.
-echo Check your drive? If it IS correct, please report this incident.
+echo Windows was not detected at the specified drive letter.
 goto end
 
-:LiveWindows
-cls
-echo X drive is usually Live Windows or Recovery Environment.
-CHOICE /C YN /M "Do you want to proceed with drive letter X as your Windows drive"
-IF "%ERRORLEVEL%"=="1" goto Continue
-IF "%ERRORLEVEL%"=="2" goto end
+:BadWordSize
+echo You cannot repair Windows with a mismatched processor architecture.
+echo Please repair with a Windows install under %WordSize%-bit.
+goto end
 
-:BadInstaller
-echo It looks like the AIO installer package you grabbed isn't an AIO package installer at all! Bummer, man!
-echo Like, you need to download a proper AIO installer, so like, it works.
-echo Here are some, like, techy details you need to resolve this. Here, let me punch this into BadInstaller.txt for you.
-echo The specified installer contains the following installation packages: >> BadInstaller.txt
-Dism /Get-ImageInfo /ImageFile:%Build%\%WordSize%\install.%ext% | findstr "Name">> BadInstaller.txt
-echo You need one that says %EditionC%.>> BadInstaller.txt
-echo This could be the case of a bad editions comparison. Please check which version this might be equal to and try again!>> BadInstaller.txt
+:NoInstallFile
+echo This build of Windows has not been added to the AutoDISM kit.
+echo As long as you have an install file for the edition of Windows you need to fix, it should just work.
+echo Windows %WindowsVersion% - %Build% Type - %WordSize% Edition - %Edition% >> NoOS.log
+goto end
+
+:PossibleCorrpuptWindows
+echo Registry mounting has failed. To prevent further damage, AutoDISM has terminated.
 goto end
 
 :DISMError
-cls
-if "%Live%"=="Yes" (
+if "%Status%"=="Offline" (
 echo DISM seems to have failed. If you can still boot this operating system, try running in Windows with internet.
 echo DISM should try to fetch missing or broken files from Windows Update. Likely, an updated component mismatched in the install file and DISM prevented more damage by not reverting to a version that will cause more damage.
-echo Due to some limitations in how DISM works, this doesn't appear to be something that can be done in Live Windows environment.
+echo Due to some limitations in how DISM works, this doesn't appear to be something that can be done with an offline Windows system.
 goto end
 )
 echo We are going to try again, only DISM will not be limited to the install file for its sources.
@@ -310,21 +275,15 @@ dism %Image% /Cleanup-Image /RestoreHealth /Source:%Build%\%WordSize%\install.%E
 goto sfc
 )
 goto NoInternet
+
 :NoInternet
 echo Please connect internet to this computer, then just wait to move on with things.
 echo If your internet is immovable object and you are unstoppable force, close window or CTRL + C to close by force.
 ping 127.0.0.1 -n 8 > nul
 goto DISMError
 
-:ErrorBadWindowsVersion
-::Windows does not have a unified naming system at the appointed registry key, so we are going to put a generic error message.
-::It would have been nice to have a consistent naming scheme, but whatever.
-echo AutoDISM does not support repairing whatever Windows this is.
-echo Please seek an alternative way to repair this OS.
-goto end
-
 :end
-del disk.srp
-del "%TEMP%\diskpart.srp"
-del index.tmp
+if "%Status%"=="Offline" reg unload HKLM\temphive> nul 2>&1
+rmdir /s /q %Drive%:\DISMScratchDir> nul 2>&1
+del index.tmp> nul 2>&1
 pause
