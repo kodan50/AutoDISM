@@ -11,3 +11,5 @@ Finally, the github repo system won't allow me to add the install files here bec
 
 # How to use: A quick user guide
 In an effort to make this as simple as possible, you just double click AutoDISM and let it work. If you are missing an appropriate install file, it will let you know and ask you to add it into the DISM kit.
+
+# As of 08/09/2023, Windows 11 support is broken and might not work correctly. Something in the script is screwing up when reading the installer archive and getting the appropriate index to perform the scan. I will address this when I have some free time.
