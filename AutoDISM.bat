@@ -1,5 +1,7 @@
 @echo off
 
+if "%SystemDrive"=="X:" goto SkipAdmin
+
 :: We need admin permissions for DISM to do its job, and for reg to mount and unmount a registry hive.
 :init
  setlocal DisableDelayedExpansion
