@@ -1,3 +1,5 @@
+#Github doesn't have a revert last change option from the website, requiring a person to download the desktop version to undo a commit. I don't know why this bothers me to my very core, but it hurts me. The latest version of AutoDISM is now bugged. I don't want to just add the missing character in another commit, I want to revert the changes, then recommit. But I can't. So now the program is bugged. Do a pull request and fix it for me, or wait for the next release.
+
 # AutoDISM: The automatic DISM utility
 AutoDISM, as the name might imply, is my attempt at automating DISM runs by checking over which build of Windows you are running, and calling the appropriate files and command lines to run DISM for you.
 I started this because typing the long, convoluted command for each computer I need to run DISM on became tiresome. Dealing with 10+ computers a day takes a toll on the soul.
