@@ -1,6 +1,6 @@
 @echo off
 
-if "%SystemDrive"=="X:" goto SkipAdmin
+if "%SystemDrive%"=="X:" goto SkipAdmin
 
 :: We need admin permissions for DISM to do its job, and for reg to mount and unmount a registry hive.
 :init
@@ -192,10 +192,10 @@ setlocal enabledelayedexpansion
 for /f "tokens=*" %%A in ('Dism /Get-ImageInfo /ImageFile:%Build%\%WordSize%\install.%Ext% ^| findstr "Index"') do (
     REM Remove the first seven characters from each line
     set "line=%%A"
-    echo !line:~8!>> index.tmp
+    echo !line:~8!>> "%TMP%\index.tmp"
 )
 
-for /f "delims=" %%A in ('type "%CD%\index.tmp"') do (
+for /f "delims=" %%A in ('type "%TMP%\index.tmp"') do (
     for /f "tokens=2 delims=:" %%B in ('Dism /Get-ImageInfo /ImageFile:%Build%\%WordSize%\install.%Ext% /index:%%A ^| findstr "Name"') do (
     set "index=%%A"
     set "name=%%B"
@@ -205,11 +205,11 @@ for /f "delims=" %%A in ('type "%CD%\index.tmp"') do (
 )
 
 :GoodInstaller
-
+del %TMP%\index.tmp
 echo The index number we need is %index%.
 echo The name of the index is %name%.
 echo.
-echo Let's do this!
+echo Let's rock!
 
 if "%Status%"=="Offline" set Image=^/Image:%Drive%:
 if "%Status%"=="Online" set Image=^/Online
