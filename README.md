@@ -1,5 +1,3 @@
-#Github doesn't have a revert last change option from the website, requiring a person to download the desktop version to undo a commit. I don't know why this bothers me to my very core, but it hurts me. The latest version of AutoDISM is now bugged. I don't want to just add the missing character in another commit, I want to revert the changes, then recommit. But I can't. So now the program is bugged. Do a pull request and fix it for me, or wait for the next release.
-
 # AutoDISM: The automatic DISM utility
 AutoDISM, as the name might imply, is my attempt at automating DISM runs by checking over which build of Windows you are running, and calling the appropriate files and command lines to run DISM for you.
 I started this because typing the long, convoluted command for each computer I need to run DISM on became tiresome. Dealing with 10+ computers a day takes a toll on the soul.
@@ -13,5 +11,3 @@ Finally, the github repo system won't allow me to add the install files here bec
 
 # How to use: A quick user guide
 In an effort to make this as simple as possible, you just double click AutoDISM and let it work. If you are missing an appropriate install file, it will let you know and ask you to add it into the DISM kit.
-
-# As of 08/09/2023, Windows 11 support is broken and might not work correctly. Something in the script is screwing up when reading the installer archive and getting the appropriate index to perform the scan. I will address this when I have some free time.
