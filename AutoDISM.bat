@@ -216,6 +216,7 @@ if "%Status%"=="Online" set Image=^/Online
 mkdir %Drive%:\DISMScratchDir > nul
 
 :DISMStart
+echo Running the first DISM pass.
 :: Some might say this is a bad idea to do this, but this has cleared up a lot of issues, so edit it if you don't like it.
 :: I think this only works in Live Windows. Will test when it becomes relevant.
 dism %Image%  /ScratchDir=%Drive%:\DISMScratchDir /Cleanup-Image /RevertPendingActions
@@ -225,15 +226,18 @@ del %Drive%:\windows\winsxs\pending.xml> nul 2>&1
 del %Drive%:\windows\winsxs\migration.xml> nul 2>&1
 
 :: Running this process next seems to help make the repair more reliable. No real data to back it up, though.
+echo Running the second DISM pass.
 dism %Image% /Cleanup-Image /StartComponentCleanup /ScratchDir=%Drive%:\DISMScratchDir
 
 :: We are going to perform a repair that doesn't use Windows Update. Usually, this fixes it faster, and online may not be needed.
+echo Running the third DISM pass.
 dism %Image% /Cleanup-Image /RestoreHealth /Source:%Build%\%WordSize%\install.%Ext% /LimitAccess /ScratchDir=%Drive%:\DISMScratchDir
 if not "%ERRORLEVEL%"=="0" goto DISMError
 
 :sfc
 
 :: Once DISM is done, we can SFC.
+echo Running the SFC Pass. You can unpluged the flash drive.
 if "%Status%"=="Offline" sfc /scannow /offbootdir=%Drive%: /offwindir=%Drive%:\windows
 if "%Status%"=="Online" sfc /scannow
 
@@ -273,6 +277,7 @@ echo We are going to try again, only DISM will not be limited to the install fil
 echo This might take more time, but it also just might fix the issues. Or make it worse. Who knows?
 ping 8.8.8.8 -n 1 -w 1000 > nul
 if "%ERRORLEVEL%"=="0" (
+echo Running the fourth DISM pass.
 dism %Image% /Cleanup-Image /RestoreHealth /Source:%Build%\%WordSize%\install.%Ext% /ScratchDir=%Drive%:\DISMScratchDir
 goto sfc
 )
