@@ -114,7 +114,7 @@ set Build=%Temp%
 FOR /F "tokens=2* skip=2" %%a in ('reg query %RegLoc% /v "ProductName"') do SET Temp=%%b
 set WindowsVersion=%Temp:~8,2%
 
-for /f "tokens=3" %%i in ('reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion" /v UBR') do set UBR_HEX=%%i
+for /f "tokens=3" %%i in ('reg query %RegLoc% /v UBR') do set UBR_HEX=%%i
 set UBR_HEX=%UBR_HEX:0x=%
 set /a UBR_DEC=0x%UBR_HEX%
 
