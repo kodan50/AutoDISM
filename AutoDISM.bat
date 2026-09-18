@@ -107,10 +107,16 @@ IF NOT "%WindowsVersion%"=="10" IF NOT "%WindowsVersion%"=="11" goto BadWindows
 
 FOR /F "tokens=2* skip=2" %%a in ('reg query %RegLoc% /v "EditionID"') do SET Temp=%%b
 set Edition=%Temp%
+
 FOR /F "tokens=2* skip=2" %%a in ('reg query %RegLoc% /v "CurrentBuildNumber"') do SET Temp=%%b
 set Build=%Temp%
+
 FOR /F "tokens=2* skip=2" %%a in ('reg query %RegLoc% /v "ProductName"') do SET Temp=%%b
 set WindowsVersion=%Temp:~8,2%
+
+for /f "tokens=3" %%i in ('reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion" /v UBR') do set UBR_HEX=%%i
+set UBR_HEX=%UBR_HEX:0x=%
+set /a UBR_DEC=0x%UBR_HEX%
 
 :: Just wanted to add a quick note that I have no intention to add Itanium or ARM based support, since I can't test them.
 :: If you are running this on one of those platforms, you have no one to blame but yourself.
@@ -137,6 +143,7 @@ echo --- Selected Windows Details ---
 echo Windows version:		%WindowsVersion%
 echo Windows Edition:		%Edition%
 echo Windows Build:			%Build%
+echo Windows Revision:		%UBR_DEC%
 echo Windows Type:			%WordSize%-bit
 
 if not exist "%Build%\%WordSize%\install.*" goto NoInstallFile
